@@ -1,0 +1,52 @@
+{
+  "department_mappings": {
+    "pothole": "Roads & Infrastructure",
+    "mud_road": "Roads & Infrastructure",
+    "erosion": "Roads & Infrastructure",
+    "footpath_damage": "Roads & Infrastructure",
+    "streetlight": "Electrical & Streetlights",
+    "waterlogging": "Drainage & Water",
+    "manhole": "Drainage & Water",
+    "dead_animal": "Sanitation",
+    "encroachment": "Sanitation",
+    "tree": "Parks & Environment",
+    "damaged_public_property": "Public Works"
+  },
+  "sla_tiers_hours": {
+    "high": 24,
+    "medium": 48,
+    "low": 72
+  },
+  "supervisor_contacts": {
+    "Roads & Infrastructure": {
+      "name": "Supervisor Roads",
+      "phone": "+91-11-2345-1001",
+      "email": "supervisor.roads@urbanpulse.gov"
+    },
+    "Electrical & Streetlights": {
+      "name": "Supervisor Electric",
+      "phone": "+91-11-2345-1002",
+      "email": "supervisor.electric@urbanpulse.gov"
+    },
+    "Drainage & Water": {
+      "name": "Supervisor Drainage",
+      "phone": "+91-11-2345-1003",
+      "email": "supervisor.drainage@urbanpulse.gov"
+    },
+    "Sanitation": {
+      "name": "Supervisor Sanitation",
+      "phone": "+91-11-2345-1004",
+      "email": "supervisor.sanitation@urbanpulse.gov"
+    },
+    "Parks & Environment": {
+      "name": "Supervisor Parks",
+      "phone": "+91-11-2345-1005",
+      "email": "supervisor.parks@urbanpulse.gov"
+    },
+    "Public Works": {
+      "name": "Supervisor PW",
+      "phone": "+91-11-2345-1006",
+      "email": "supervisor.pw@urbanpulse.gov"
+    }
+  }
+}

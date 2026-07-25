@@ -1,0 +1,17 @@
+# UrbanPulse Dedup Service - Dependencies
+
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+psycopg2-binary>=2.9.9
+redis>=5.0.0
+boto3>=1.33.0
+botocore>=1.33.0
+Pillow>=10.1.0
+numpy>=1.24.0
+
+# Optional production CLIP dependencies (uncomment in production)
+# sentence-transformers>=2.2.2
+# torch>=2.0.0
+
+# Testing
+pytest>=7.4.0

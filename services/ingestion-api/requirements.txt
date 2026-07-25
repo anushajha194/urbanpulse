@@ -1,0 +1,32 @@
+# UrbanPulse Ingestion API - Dependencies
+
+# --- Web Framework ---
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# --- Configuration ---
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# --- Database ---
+psycopg2-binary>=2.9.9
+
+# --- Object Storage ---
+boto3>=1.33.0
+botocore>=1.33.0
+
+# --- Queue ---
+redis>=5.0.0
+
+# --- Image Processing ---
+Pillow>=10.1.0
+
+# --- ML (production blur only — optional) ---
+# ultralytics>=8.0.0    # Uncomment for model blur mode
+# opencv-python>=4.8.0  # Uncomment for model blur mode
+# numpy>=1.24.0         # Uncomment for model blur mode
+
+# --- Testing ---
+pytest>=7.4.0
+httpx>=0.25.0

@@ -1,0 +1,3 @@
+Complaint {complaint_id} has been resolved.
+The department has completed the repairs, and the fix has been verified against the original coordinates and timestamp.
+This complaint is now closed. Thank you for helping improve our civic infrastructure!

@@ -1,0 +1,3 @@
+SLA BREACH ALERT: Complaint {complaint_id} assigned to department {department_name} has breached its resolution deadline ({deadline}).
+Escalated to Supervisor: {contact_name} ({contact_phone}).
+Action required immediately.
