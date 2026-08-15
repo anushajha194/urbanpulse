@@ -68,6 +68,7 @@ class DatabaseService:
         lng: float,
         source: str = "mobile_app",
         timestamp: Optional[datetime] = None,
+        location_source: str = "device",
     ) -> dict:
         """
         Insert a new complaint with status='pending'.
@@ -79,6 +80,7 @@ class DatabaseService:
             lng: GPS longitude
             source: Submission source (mobile_app, cctv, drone)
             timestamp: Optional capture timestamp
+            location_source: How location was determined (image_exif, device, manual)
 
         Returns:
             dict with id, status, image_url, created_at
@@ -89,10 +91,10 @@ class DatabaseService:
                     """
                     INSERT INTO complaints (
                         image_url, blurred_image_url, lat, lng,
-                        issue_class, confidence, status, source, created_at
+                        issue_class, confidence, status, source, location_source, created_at
                     ) VALUES (
                         %s, %s, %s, %s,
-                        'pothole', 0.0, 'pending', %s, COALESCE(%s, NOW())
+                        'pothole', 0.0, 'pending', %s, %s, COALESCE(%s, NOW())
                     )
                     RETURNING id, status, blurred_image_url, created_at
                     """,
@@ -102,6 +104,7 @@ class DatabaseService:
                         lat,
                         lng,
                         source,
+                        location_source,
                         timestamp,
                     ),
                 )

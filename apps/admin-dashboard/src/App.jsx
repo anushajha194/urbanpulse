@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import MetricCards from './components/MetricCards';
 import Filters from './components/Filters';
 import MapContainer from './components/MapContainer';
 import ComplaintTable from './components/ComplaintTable';
+import SubmitComplaint from './components/SubmitComplaint';
 import { mockComplaints } from './mockData';
 import './App.css';
 
@@ -17,6 +18,7 @@ export default function App() {
   const [minSeverity, setMinSeverity] = useState(0);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   // Current date/time for header
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -30,27 +32,29 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // 1. Fetch data on load
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('Network response not ok');
-        const data = await response.json();
-        if (data && data.length > 0) {
-          setComplaints(data);
-        } else {
-          setComplaints(mockComplaints);
-        }
-      } catch (err) {
-        console.warn('API is unreachable. Falling back to local mock database.', err);
+  // 1. Fetch data function (reusable for refresh)
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(API_URL);
+      if (!response.ok) throw new Error('Network response not ok');
+      const data = await response.json();
+      if (data && data.length > 0) {
+        setComplaints(data);
+      } else {
         setComplaints(mockComplaints);
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.warn('API is unreachable. Falling back to local mock database.', err);
+      setComplaints(mockComplaints);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // 2. Filter complaints dynamically when filters or base list changes
   useEffect(() => {
@@ -140,6 +144,9 @@ export default function App() {
             <span>{formatTime(currentTime)}</span>
           </div>
           <div className="header-status">
+            <button className="submit-report-btn" onClick={() => setShowSubmitModal(true)}>
+              📋 Submit Report
+            </button>
             <span className="live-indicator"></span>
             <span className="live-text">Live Feed</span>
           </div>
@@ -203,6 +210,13 @@ export default function App() {
           </div>
         </>
       )}
+
+      {/* Submit Complaint Modal */}
+      <SubmitComplaint
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        onSubmitted={fetchData}
+      />
     </div>
   );
 }

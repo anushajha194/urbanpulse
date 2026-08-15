@@ -142,6 +142,7 @@ async def create_complaint(
     lng: Optional[float] = Form(None, description="GPS longitude (-180 to 180)"),
     timestamp: Optional[str] = Form(None, description="Capture timestamp (ISO 8601)"),
     source: str = Form("mobile_app", description="Source: mobile_app, cctv, drone"),
+    location_source: str = Form("device", description="How location was determined: image_exif, device, manual"),
 ):
     """
     Create a new complaint from an uploaded image.
@@ -168,15 +169,18 @@ async def create_complaint(
     # Body GPS takes priority over EXIF (user can correct drift)
     final_lat = lat
     final_lng = lng
+    final_location_source = location_source
 
     if final_lat is None or final_lng is None:
         exif_data = _extract_exif_gps(pil_image)
-        if final_lat is None:
-            final_lat = exif_data.get("lat")
-        if final_lng is None:
-            final_lng = exif_data.get("lng")
+        if exif_data.get("lat") is not None and exif_data.get("lng") is not None:
+            if final_lat is None:
+                final_lat = exif_data.get("lat")
+            if final_lng is None:
+                final_lng = exif_data.get("lng")
+            final_location_source = "image_exif"
 
-    # GPS is required — must come from body or EXIF
+    # GPS is required — must come from body, EXIF, or be explicitly provided
     if final_lat is None or final_lng is None:
         raise HTTPException(
             status_code=422,
@@ -229,6 +233,7 @@ async def create_complaint(
         lng=final_lng,
         source=metadata.source,
         timestamp=ts,
+        location_source=final_location_source,
     )
 
     # --- Step 6: Publish detection job ---

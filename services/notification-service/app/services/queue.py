@@ -21,7 +21,14 @@ class NotificationQueue:
 
     def connect(self):
         """Connect to Redis."""
-        self._redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    def connect(self):
+        """Connect to Redis."""
+        self._redis = redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=settings.WORKER_POLL_TIMEOUT + 5,
+        )
         self._redis.ping()
         logger.info(f"Notification queue connected to {settings.REDIS_URL}")
 

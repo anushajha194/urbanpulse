@@ -13,6 +13,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.models import HealthResponse
@@ -85,6 +86,15 @@ app = FastAPI(
 
 # Mount routes
 app.include_router(complaints_router)
+
+# CORS — allow the admin dashboard and citizen-app to make API requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:8081", "http://localhost:19006"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])

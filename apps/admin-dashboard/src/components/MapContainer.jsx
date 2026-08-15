@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Map, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useMemo } from 'react';
+import { MapContainer as LeafletMapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { Map, AlertTriangle } from 'lucide-react';
 
-// Status styling helpers
+// Status → color mapping (consistent with the rest of the dashboard)
 const getMarkerColor = (status) => {
   switch (status) {
     case 'pending': return '#d29922';
@@ -15,37 +16,37 @@ const getMarkerColor = (status) => {
   }
 };
 
-export default function MapContainer({ complaints, showHeatmap, selectedComplaint }) {
-  const mapContainerRef = useRef(null);
-  const [mapError, setMapError] = useState(false);
-  const [activePopup, setActivePopup] = useState(null);
-
-  // Delhi Bounds for fallback coordinate mapping
-  // Bounding box: lat [28.60, 28.63], lng [77.20, 77.22]
-  const minLat = 28.6050;
-  const maxLat = 28.6250;
-  const minLng = 77.2000;
-  const maxLng = 77.2200;
-
-  const getPositionPercent = (lat, lng) => {
-    // Math to position markers on the fallback SVG map
-    const pctX = ((lng - minLng) / (maxLng - minLng)) * 100;
-    // Latitude increases upwards, so subtract from 100
-    const pctY = 100 - (((lat - minLat) / (maxLat - minLat)) * 100);
-    return {
-      left: `${Math.max(5, Math.min(95, pctX))}%`,
-      top: `${Math.max(5, Math.min(95, pctY))}%`
-    };
-  };
+// Helper component to auto-fit map bounds to markers
+function FitBounds({ complaints, selectedComplaint }) {
+  const map = useMap();
 
   useEffect(() => {
-    // Attempt to load Mapbox dynamically if we have a token
-    // In dev, we default to the gorgeous mock visualizer to guarantee performance and local testing stability.
-    const token = import.meta.env?.VITE_MAPBOX_TOKEN || '';
-    if (!token) {
-      setMapError(true);
+    if (selectedComplaint) {
+      map.setView([selectedComplaint.lat, selectedComplaint.lng], 16, { animate: true });
+      return;
     }
-  }, []);
+
+    if (complaints.length > 0) {
+      const bounds = complaints.map(c => [c.lat, c.lng]);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    }
+  }, [complaints, selectedComplaint, map]);
+
+  return null;
+}
+
+export default function MapContainer({ complaints, showHeatmap, selectedComplaint }) {
+  // Default center: Delhi (matches mock data coordinates)
+  const defaultCenter = [28.6139, 77.2090];
+  const defaultZoom = 14;
+
+  // Determine center from complaints or use default
+  const center = useMemo(() => {
+    if (complaints.length === 0) return defaultCenter;
+    const avgLat = complaints.reduce((sum, c) => sum + c.lat, 0) / complaints.length;
+    const avgLng = complaints.reduce((sum, c) => sum + c.lng, 0) / complaints.length;
+    return [avgLat, avgLng];
+  }, [complaints]);
 
   return (
     <div>
@@ -59,161 +60,126 @@ export default function MapContainer({ complaints, showHeatmap, selectedComplain
         </span>
       </div>
       <div className="map-wrapper glass has-header">
-        {mapError ? (
-          // Beautiful fallback GIS Map Overlay (Delhi Grid)
-          <div className="mock-map-gis">
-            <div className="map-grid-layer">
-              <svg width="100%" height="100%" className="gis-grid-svg">
-                <defs>
-                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
-                  </pattern>
-                  <pattern id="gridLarge" width="200" height="200" patternUnits="userSpaceOnUse">
-                    <path d="M 200 0 L 0 0 0 200" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
-                  </pattern>
-                  <radialGradient id="mapGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#58a6ff" stopOpacity="0.06" />
-                    <stop offset="100%" stopColor="#58a6ff" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-                <rect width="100%" height="100%" fill="url(#gridLarge)" />
-                
-                {/* Ambient glow */}
-                <circle cx="50%" cy="50%" r="35%" fill="url(#mapGlow)" />
-
-                {/* Major arteries with glow */}
-                <line x1="8%" y1="0%" x2="92%" y2="100%" stroke="rgba(88,166,255,0.08)" strokeWidth="6" />
-                <line x1="8%" y1="0%" x2="92%" y2="100%" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
-                <line x1="0%" y1="65%" x2="100%" y2="35%" stroke="rgba(88,166,255,0.06)" strokeWidth="6" />
-                <line x1="0%" y1="65%" x2="100%" y2="35%" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
-                <line x1="50%" y1="0%" x2="50%" y2="100%" stroke="rgba(255,255,255,0.04)" strokeWidth="1.5" strokeDasharray="8 4" />
-                <line x1="0%" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="6 6" />
-                
-                {/* Zone overlays */}
-                <rect x="22%" y="22%" width="22%" height="22%" rx="12" fill="rgba(88, 166, 255, 0.03)" stroke="rgba(88, 166, 255, 0.12)" strokeWidth="1" strokeDasharray="6 3" />
-                <text x="24%" y="28%" fill="rgba(88, 166, 255, 0.35)" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">SCHOOL ZONE</text>
-
-                <rect x="58%" y="52%" width="28%" height="28%" rx="12" fill="rgba(248, 81, 73, 0.02)" stroke="rgba(248, 81, 73, 0.1)" strokeWidth="1" strokeDasharray="6 3" />
-                <text x="60%" y="58%" fill="rgba(248, 81, 73, 0.35)" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">HOSPITAL ZONE</text>
-
-                <rect x="10%" y="60%" width="18%" height="18%" rx="12" fill="rgba(63, 185, 80, 0.02)" stroke="rgba(63, 185, 80, 0.08)" strokeWidth="1" strokeDasharray="6 3" />
-                <text x="12%" y="66%" fill="rgba(63, 185, 80, 0.3)" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">PARK</text>
-              </svg>
-            </div>
-
-            {/* Empty state when no complaints */}
-            {complaints.length === 0 && (
-              <div className="map-empty-state">
-                <AlertTriangle size={32} />
-                <span>No incidents match current filters</span>
-              </div>
-            )}
-
-            {/* Heatmap Overlay */}
-            {showHeatmap && (
-              <div className="heatmap-overlay-layer">
-                {complaints.map((c) => {
-                  const pos = getPositionPercent(c.lat, c.lng);
-                  return (
-                    <div
-                      key={`heat-${c.id}`}
-                      className="heat-point"
-                      style={{
-                        left: pos.left,
-                        top: pos.top,
-                        transform: 'translate(-50%, -50%)'
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Complaint Markers */}
-            {!showHeatmap && complaints.map((c) => {
-              const pos = getPositionPercent(c.lat, c.lng);
-              const isSelected = selectedComplaint && selectedComplaint.id === c.id;
-              return (
-                <div
-                  key={c.id}
-                  className={`map-marker-wrapper ${isSelected ? 'marker-pulse' : ''}`}
-                  style={{
-                    left: pos.left,
-                    top: pos.top,
-                  }}
-                >
-                  <button
-                    className="marker-btn"
-                    onClick={() => setActivePopup(c)}
-                    style={{ backgroundColor: getMarkerColor(c.status) }}
-                    title={`${c.issue_class} (${c.status})`}
-                  >
-                    <MapPin size={12} color="#ffffff" />
-                  </button>
-                </div>
-              );
-            })}
-
-            {/* Interactive Popup Details Card */}
-            {activePopup && (
-              <div
-                className="map-popup glass"
-                style={{
-                  left: getPositionPercent(activePopup.lat, activePopup.lng).left,
-                  top: `calc(${getPositionPercent(activePopup.lat, activePopup.lng).top} - 10px)`
-                }}
-              >
-                <div className="popup-header">
-                  <h3>{activePopup.issue_class.replace('_', ' ').toUpperCase()}</h3>
-                  <button onClick={() => setActivePopup(null)} className="popup-close">×</button>
-                </div>
-                <div className="popup-body">
-                  <img
-                    src={activePopup.blurred_image_url || activePopup.image_url}
-                    alt={activePopup.issue_class}
-                    className="popup-thumbnail"
-                    onError={(e) => {
-                      e.target.src = 'https://placehold.co/64x64/161b22/484f58?text=No+Photo';
-                    }}
-                  />
-                  <div className="popup-info">
-                    <div className="popup-meta-row">
-                      <span className="popup-label">Status:</span>
-                      <span className="popup-val" style={{ color: getMarkerColor(activePopup.status) }}>
-                        {activePopup.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="popup-meta-row">
-                      <span className="popup-label">Severity:</span>
-                      <span className="popup-val">{activePopup.severity_score ? activePopup.severity_score.toFixed(0) : 'N/A'}</span>
-                    </div>
-                    <div className="popup-meta-row">
-                      <span className="popup-label">Dept:</span>
-                      <span className="popup-val">{activePopup.department_name || 'Awaiting Routing'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="map-legend glass">
-              <h4>Legend</h4>
-              <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#d29922' }} /><span>Pending</span></div>
-              <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#f0883e' }} /><span>Under Review</span></div>
-              <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#58a6ff' }} /><span>Assigned</span></div>
-              <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#3fb950' }} /><span>Closed/Verified</span></div>
-              <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#f85149' }} /><span>Rejected</span></div>
-            </div>
-
-            <div className="map-watermark">
-              <span>UrbanPulse GIS Visualization Layer</span>
-            </div>
+        {complaints.length === 0 ? (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-muted)' }}>
+            <AlertTriangle size={32} style={{ opacity: 0.3 }} />
+            <span>No incidents match current filters</span>
           </div>
         ) : (
-          // Standard Mapbox Container (Will mount if token is populated)
-          <div ref={mapContainerRef} className="mapbox-gl-map" />
+          <LeafletMapContainer
+            center={center}
+            zoom={defaultZoom}
+            style={{ height: '100%', width: '100%', borderRadius: '0 0 14px 14px' }}
+            zoomControl={true}
+            attributionControl={true}
+          >
+            {/* Dark-themed tile layer for premium look */}
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+
+            {/* Auto-fit bounds */}
+            <FitBounds complaints={complaints} selectedComplaint={selectedComplaint} />
+
+            {/* Heatmap overlay — larger translucent circles */}
+            {showHeatmap && complaints.map((c) => (
+              <CircleMarker
+                key={`heat-${c.id}`}
+                center={[c.lat, c.lng]}
+                radius={35}
+                pathOptions={{
+                  color: 'transparent',
+                  fillColor: '#f85149',
+                  fillOpacity: 0.2,
+                }}
+              />
+            ))}
+
+            {/* Complaint markers */}
+            {!showHeatmap && complaints.map((c) => {
+              const isSelected = selectedComplaint && selectedComplaint.id === c.id;
+              const markerColor = getMarkerColor(c.status);
+              return (
+                <CircleMarker
+                  key={c.id}
+                  center={[c.lat, c.lng]}
+                  radius={isSelected ? 12 : 8}
+                  pathOptions={{
+                    color: '#ffffff',
+                    weight: isSelected ? 3 : 2,
+                    fillColor: markerColor,
+                    fillOpacity: 0.9,
+                  }}
+                >
+                  <Popup>
+                    <div style={{
+                      fontFamily: 'Inter, sans-serif',
+                      minWidth: 180,
+                    }}>
+                      <div style={{
+                        fontWeight: 700,
+                        fontSize: 13,
+                        marginBottom: 6,
+                        color: '#1a1a2e',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}>
+                        {c.issue_class.replace(/_/g, ' ')}
+                      </div>
+                      {(c.blurred_image_url || c.image_url) && (
+                        <img
+                          src={c.blurred_image_url || c.image_url}
+                          alt={c.issue_class}
+                          style={{
+                            width: '100%',
+                            height: 80,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                            marginBottom: 8,
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div style={{ fontSize: 12, lineHeight: 1.8 }}>
+                        <div>
+                          <span style={{ color: '#6b7280' }}>Status: </span>
+                          <span style={{ color: markerColor, fontWeight: 600 }}>
+                            {c.status.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{ color: '#6b7280' }}>Severity: </span>
+                          <strong>{c.severity_score ? c.severity_score.toFixed(0) : 'N/A'}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: '#6b7280' }}>Dept: </span>
+                          <span>{c.department_name || 'Awaiting Routing'}</span>
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 11, color: '#9ca3af' }}>
+                          📍 {c.lat.toFixed(5)}, {c.lng.toFixed(5)}
+                        </div>
+                      </div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              );
+            })}
+          </LeafletMapContainer>
         )}
+
+        {/* Legend overlay */}
+        <div className="map-legend glass" style={{ zIndex: 1000 }}>
+          <h4>Legend</h4>
+          <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#d29922' }} /><span>Pending</span></div>
+          <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#f0883e' }} /><span>Under Review</span></div>
+          <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#58a6ff' }} /><span>Assigned</span></div>
+          <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#1f6feb' }} /><span>In Progress</span></div>
+          <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#3fb950' }} /><span>Closed/Verified</span></div>
+          <div className="legend-row"><span className="legend-dot" style={{ backgroundColor: '#f85149' }} /><span>Rejected</span></div>
+        </div>
       </div>
     </div>
   );
