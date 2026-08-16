@@ -2,88 +2,122 @@
 UrbanPulse Worker Launcher
 ==========================
 Consolidated launcher for all background worker services.
-Runs detection, dedup, scoring, routing, and notification workers
-in a single process, reducing the number of terminal windows.
 
-Usage:
-    python services/worker_launcher.py
+Each worker runs using its own service-specific virtual environment.
 """
 
 import subprocess
 import sys
 import signal
 import time
-import os
 from pathlib import Path
 
-# Worker services to launch (relative to project root)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 WORKERS = [
     {
         "name": "Detection Worker",
-        "cwd": "services/detection-service",
-        "cmd": [sys.executable, "-m", "app.main"],
+        "service": "detection-service",
     },
     {
         "name": "Dedup Worker",
-        "cwd": "services/dedup-service",
-        "cmd": [sys.executable, "-m", "app.main"],
+        "service": "dedup-service",
     },
     {
         "name": "Scoring Worker",
-        "cwd": "services/scoring-service",
-        "cmd": [sys.executable, "-m", "app.main"],
+        "service": "scoring-service",
     },
     {
         "name": "Routing Worker",
-        "cwd": "services/routing-service",
-        "cmd": [sys.executable, "-m", "app.main"],
+        "service": "routing-service",
     },
     {
         "name": "Notification Worker",
-        "cwd": "services/notification-service",
-        "cmd": [sys.executable, "-m", "app.main"],
+        "service": "notification-service",
     },
 ]
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 processes = []
 
 
+def get_python(service_dir):
+    """Return the Python executable from the service's venv."""
+    if sys.platform == "win32":
+        python = service_dir / "venv" / "Scripts" / "python.exe"
+    else:
+        python = service_dir / "venv" / "bin" / "python"
+
+    return python
+
+
 def start_workers():
-    """Launch all worker services as subprocesses."""
+    """Launch all worker services."""
     print("=" * 60)
     print("  UrbanPulse Worker Launcher")
     print("=" * 60)
 
     for worker in WORKERS:
-        cwd = PROJECT_ROOT / worker["cwd"]
-        if not cwd.exists():
-            print(f"  [SKIP] {worker['name']} — directory not found: {cwd}")
+        service_dir = PROJECT_ROOT / "services" / worker["service"]
+        python_exe = get_python(service_dir)
+
+        if not service_dir.exists():
+            print(
+                f"  [SKIP] {worker['name']} — "
+                f"directory not found: {service_dir}"
+            )
             continue
+
+        if not python_exe.exists():
+            print(
+                f"  [FAIL] {worker['name']} — "
+                f"venv Python not found: {python_exe}"
+            )
+            continue
+
+        cmd = [
+            str(python_exe),
+            "-m",
+            "app.main",
+        ]
 
         try:
             proc = subprocess.Popen(
-                worker["cmd"],
-                cwd=str(cwd),
+                cmd,
+                cwd=str(service_dir),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
             )
-            processes.append({"name": worker["name"], "proc": proc})
-            print(f"  [OK]   {worker['name']} started (PID: {proc.pid})")
+
+            processes.append({
+                "name": worker["name"],
+                "proc": proc,
+            })
+
+            print(
+                f"  [OK]   {worker['name']} started "
+                f"(PID: {proc.pid})"
+            )
+            print(
+                f"         Python: {python_exe}"
+            )
+
         except Exception as e:
             print(f"  [FAIL] {worker['name']} — {e}")
 
     print("=" * 60)
-    print(f"  {len(processes)} workers running. Press Ctrl+C to stop all.")
+    print(
+        f"  {len(processes)} workers running. "
+        "Press Ctrl+C to stop all."
+    )
     print("=" * 60)
     print()
 
 
 def stream_output():
-    """Stream worker output to console with prefixed labels."""
-    import select
+    """Stream worker output to console."""
     import threading
 
     def stream_worker(name, proc):
@@ -95,31 +129,41 @@ def stream_output():
             pass
 
     threads = []
+
     for worker in processes:
-        t = threading.Thread(
+        thread = threading.Thread(
             target=stream_worker,
             args=(worker["name"], worker["proc"]),
             daemon=True,
         )
-        t.start()
-        threads.append(t)
+        thread.start()
+        threads.append(thread)
 
     return threads
 
 
 def shutdown(signum=None, frame=None):
-    """Gracefully terminate all worker processes."""
+    """Gracefully stop all workers."""
     print("\n  Shutting down workers...")
+
     for worker in processes:
+        proc = worker["proc"]
+
         try:
-            worker["proc"].terminate()
-            worker["proc"].wait(timeout=5)
-            print(f"  [STOP] {worker['name']} terminated")
+            if proc.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=5)
+                print(
+                    f"  [STOP] {worker['name']} terminated"
+                )
         except subprocess.TimeoutExpired:
-            worker["proc"].kill()
-            print(f"  [KILL] {worker['name']} force-killed")
+            proc.kill()
+            print(
+                f"  [KILL] {worker['name']} force-killed"
+            )
         except Exception:
             pass
+
     print("  All workers stopped.")
     sys.exit(0)
 
@@ -129,15 +173,20 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, shutdown)
 
     start_workers()
-    threads = stream_output()
+    stream_output()
 
-    # Keep main thread alive
     try:
         while True:
-            # Check if any worker died unexpectedly
             for worker in processes:
-                if worker["proc"].poll() is not None:
-                    print(f"  [WARN] {worker['name']} exited with code {worker['proc'].returncode}")
+                proc = worker["proc"]
+
+                if proc.poll() is not None:
+                    print(
+                        f"  [WARN] {worker['name']} "
+                        f"exited with code {proc.returncode}"
+                    )
+
             time.sleep(5)
+
     except KeyboardInterrupt:
         shutdown()
