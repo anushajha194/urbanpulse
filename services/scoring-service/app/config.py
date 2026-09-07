@@ -28,6 +28,10 @@ class Settings(BaseSettings):
         default="scoring_jobs",
         description="Queue to consume scoring jobs from",
     )
+    OUTPUT_QUEUE: str = Field(
+        default="routing_jobs",
+        description="Queue to publish routing jobs to after scoring",
+    )
 
     # --- Worker poll ---
     WORKER_POLL_TIMEOUT: int = Field(default=5)

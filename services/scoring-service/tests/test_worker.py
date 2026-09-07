@@ -6,10 +6,10 @@ from unittest.mock import patch, MagicMock
 from app.main import process_job
 
 
-def test_worker_process_job(mock_db):
+def test_worker_process_job(mock_db, mock_queue):
     """
-    Test that worker retrieves coordinates, runs engine, and persists scores.
-    Verify scores are scaled down by 10.0 when saved in database.
+    Test that worker retrieves coordinates, runs engine, persists scores,
+    and publishes a routing job.
     """
     # Delhi coordinates inside mock school zone, low traffic
     mock_db.get_complaint_context.return_value = {
@@ -23,7 +23,8 @@ def test_worker_process_job(mock_db):
         "issue_class": "pothole",
     }
 
-    with patch("app.main.scoring_db", mock_db):
+    with patch("app.main.scoring_db", mock_db), \
+         patch("app.main.scoring_queue", mock_queue):
         process_job(job)
 
         mock_db.get_complaint_context.assert_called_once_with("test-complaint-uuid")
@@ -35,3 +36,7 @@ def test_worker_process_job(mock_db):
         assert kwargs["complaint_id"] == "test-complaint-uuid"
         assert kwargs["severity_100"] == 45.0
         assert kwargs["priority_100"] == 67.5
+
+        # Verify routing job was also published
+        mock_queue.publish_routing_job.assert_called_once()
+

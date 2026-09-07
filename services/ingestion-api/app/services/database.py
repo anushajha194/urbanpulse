@@ -144,9 +144,8 @@ class DatabaseService:
             where_clauses.append("c.department_id = %s::uuid")
             params.append(department_id)
         if min_severity is not None:
-            val = min_severity / 10.0 if min_severity > 10.0 else min_severity
             where_clauses.append("c.severity_score >= %s")
-            params.append(val)
+            params.append(min_severity)
 
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
@@ -167,8 +166,8 @@ class DatabaseService:
                         "lng": row["lng"],
                         "issue_class": row["issue_class"],
                         "confidence": float(row["confidence"]) if row["confidence"] is not None else 0.0,
-                        "severity_score": float(row["severity_score"]) * 10.0 if row["severity_score"] is not None else None,
-                        "priority_score": float(row["priority_score"]) * 10.0 if row["priority_score"] is not None else None,
+                        "severity_score": float(row["severity_score"]) if row["severity_score"] is not None else None,
+                        "priority_score": float(row["priority_score"]) if row["priority_score"] is not None else None,
                         "status": row["status"],
                         "department_id": str(row["department_id"]) if row["department_id"] else None,
                         "department_name": row["department_name"],

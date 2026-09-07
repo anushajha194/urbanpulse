@@ -80,11 +80,10 @@ class ScoringDB:
     ):
         """
         Saves priority and severity scores to the database.
-        Scales scores by /10.0 to comply with DB CHECK constraints [0.0 - 10.0].
+        Scores are on the 0–100 scale, matching the DB CHECK constraints.
         """
-        # Convert 0-100 to 0-10 scale
-        severity_10 = max(0.0, min(10.0, severity_100 / 10.0))
-        priority_10 = max(0.0, min(10.0, priority_100 / 10.0))
+        severity = max(0.0, min(100.0, severity_100))
+        priority = max(0.0, min(100.0, priority_100))
 
         with self.get_connection() as conn:
             with conn.cursor() as cur:
@@ -96,11 +95,11 @@ class ScoringDB:
                         updated_at = NOW()
                     WHERE id = %s::uuid
                     """,
-                    (severity_10, priority_10, complaint_id),
+                    (severity, priority, complaint_id),
                 )
                 logger.info(
                     f"Persisted scores for {complaint_id}: "
-                    f"severity={severity_10:.2f}/10, priority={priority_10:.2f}/10"
+                    f"severity={severity:.2f}/100, priority={priority:.2f}/100"
                 )
 
 

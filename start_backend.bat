@@ -28,7 +28,7 @@ if %RETRIES% gtr 20 (
     echo   WARNING: PostgreSQL did not become ready after 20 attempts. Proceeding anyway...
     goto db_done
 )
-docker compose exec -T postgres pg_isready -U urbanpulse >nul 2>&1
+docker compose exec -T db pg_isready -U postgres >nul 2>&1
 if %errorlevel% neq 0 (
     echo   Attempt %RETRIES%/20: PostgreSQL not ready, waiting 3s...
     timeout /t 3 /nobreak >nul

@@ -40,7 +40,11 @@ class pgvectorStore:
 
         if exclude_id:
             exclude_clause = "AND c.id != %s::uuid"
-            params.append(exclude_id)
+            # Insert exclude_id before the final embedding_str so SQL
+            # placeholders bind correctly:
+            #   %s::vector (embedding), %s (days), %s (lng), %s (lat),
+            #   %s (radius), %s::uuid (exclude_id), %s::vector (embedding)
+            params.insert(-1, exclude_id)
 
         query = f"""
             SELECT ce.complaint_id,

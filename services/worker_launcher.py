@@ -175,12 +175,15 @@ if __name__ == "__main__":
     start_workers()
     stream_output()
 
+    reported_exits = set()
+
     try:
         while True:
             for worker in processes:
                 proc = worker["proc"]
 
-                if proc.poll() is not None:
+                if proc.poll() is not None and proc.pid not in reported_exits:
+                    reported_exits.add(proc.pid)
                     print(
                         f"  [WARN] {worker['name']} "
                         f"exited with code {proc.returncode}"

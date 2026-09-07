@@ -15,23 +15,23 @@ logger = logging.getLogger(__name__)
 class SLAManager:
     """Manages complaint SLA deadlines and check_overdue escalations."""
 
-    def calculate_deadline(self, severity_score_10: float) -> datetime:
+    def calculate_deadline(self, severity_score: float) -> datetime:
         """
-        Determine SLA hours based on severity score (out of 10.0 scale)
+        Determine SLA hours based on severity score (0–100 scale)
         and return the absolute deadline timestamp.
         """
         # Read tiers from rules config
         tiers = routing_engine.rules.get("sla_tiers_hours", {"high": 24, "medium": 48, "low": 72})
 
-        if severity_score_10 >= 7.0:
+        if severity_score >= 70.0:
             hours = tiers.get("high", 24)
-        elif severity_score_10 >= 4.0:
+        elif severity_score >= 40.0:
             hours = tiers.get("medium", 48)
         else:
             hours = tiers.get("low", 72)
 
         deadline = datetime.utcnow() + timedelta(hours=hours)
-        logger.debug(f"Calculated SLA deadline for severity {severity_score_10}: {hours}h ({deadline})")
+        logger.debug(f"Calculated SLA deadline for severity {severity_score}: {hours}h ({deadline})")
         return deadline
 
     def check_overdue(self, db, queue) -> int:

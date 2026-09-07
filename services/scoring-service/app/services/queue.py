@@ -51,5 +51,25 @@ class ScoringQueue:
             logger.error(f"Failed to consume scoring job: {e}")
             return None
 
+    def publish_routing_job(
+        self,
+        complaint_id: str,
+        issue_class: str,
+        severity: float,
+        priority: float,
+    ):
+        """
+        Publish a routing job after scoring completes successfully.
+        """
+        message = json.dumps({
+            "complaint_id": complaint_id,
+            "issue_class": issue_class,
+            "severity": severity,
+            "priority": priority,
+            "job_type": "routing",
+        })
+        self._redis.lpush(settings.OUTPUT_QUEUE, message)
+        logger.info(f"Published routing job for {complaint_id}")
+
 
 scoring_queue = ScoringQueue()

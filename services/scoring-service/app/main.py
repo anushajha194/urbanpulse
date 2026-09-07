@@ -66,6 +66,14 @@ def process_job(job: dict):
         priority_100=scores["priority"],
     )
 
+    # 5. Publish routing job for downstream processing
+    scoring_queue.publish_routing_job(
+        complaint_id=complaint_id,
+        issue_class=issue_class,
+        severity=scores["severity"],
+        priority=scores["priority"],
+    )
+
     logger.info(
         f"Scoring resolved for {complaint_id}: "
         f"Severity={scores['severity']:.1f}, Priority={scores['priority']:.1f}"

@@ -13,18 +13,18 @@ def test_sla_deadline_calculation():
     """Verify high/medium/low severity map to correct hour offsets."""
     routing_engine.load_rules()
 
-    # High severity (>= 7.0) -> 24 hours
-    deadline_high = sla_manager.calculate_deadline(8.5)
+    # High severity (>= 70.0) -> 24 hours
+    deadline_high = sla_manager.calculate_deadline(85.0)
     expected_high = datetime.utcnow() + timedelta(hours=24)
     assert abs((deadline_high - expected_high).total_seconds()) < 5
 
-    # Medium severity (4.0 - 6.9) -> 48 hours
-    deadline_med = sla_manager.calculate_deadline(5.0)
+    # Medium severity (40.0 - 69.9) -> 48 hours
+    deadline_med = sla_manager.calculate_deadline(50.0)
     expected_med = datetime.utcnow() + timedelta(hours=48)
     assert abs((deadline_med - expected_med).total_seconds()) < 5
 
-    # Low severity (< 4.0) -> 72 hours
-    deadline_low = sla_manager.calculate_deadline(2.5)
+    # Low severity (< 40.0) -> 72 hours
+    deadline_low = sla_manager.calculate_deadline(25.0)
     expected_low = datetime.utcnow() + timedelta(hours=72)
     assert abs((deadline_low - expected_low).total_seconds()) < 5
 

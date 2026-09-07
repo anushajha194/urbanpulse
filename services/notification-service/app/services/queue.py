@@ -21,8 +21,6 @@ class NotificationQueue:
 
     def connect(self):
         """Connect to Redis."""
-    def connect(self):
-        """Connect to Redis."""
         self._redis = redis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
